@@ -12,7 +12,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Command {
-		public static final String finished = "(Q*&#$(*Q#)&%Q(*#$&Q)(_EHCALSJC()EW00000000";
+		public final static Done finished = new Done();
 		public String command;
 		public String[] args;
 		public Filter cmd;
@@ -26,6 +26,9 @@ public class Command {
 			}
 			this.args = args;
 			this.command = command;
+		}
+		private static class Done{
+			private final String done = "this is done.";
 		}
 		
 		public Filter getCommands(LinkedBlockingQueue<Object> in, LinkedBlockingQueue<Object> out){
