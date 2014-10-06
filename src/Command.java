@@ -6,29 +6,21 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Command {
-		public final static Done finished = new Done();
+		public static final Done finished = new Done();
 		public String command;
 		public String[] args;
 		public Filter cmd;
 		public LinkedBlockingQueue<Object> output;
-		public boolean produces;
-		public boolean consumes;
 		
 		public Command(String command, String[] args){
-			if(command.equals(">")){
-				command = "redirect";
-			}
 			this.args = args;
 			this.command = command;
-		}
-		private static class Done{
-			private final String done = "this is done.";
 		}
 		
 		public Filter getCommands(LinkedBlockingQueue<Object> in, LinkedBlockingQueue<Object> out){
@@ -55,9 +47,16 @@ public class Command {
 					}
 				}
 			}
-			System.out.println(command + ": invalid command");
+			System.out.println("Something has gone very wrong.");
 			return null;
 		}
+	private static class Done{
+		private String boop;
+		private Done(){
+			this.boop = "This command is complete";
+		}
+	}
+		
 	public class pwd extends Filter{
 		public boolean returned = false;
 		public pwd(LinkedBlockingQueue<Object> in, LinkedBlockingQueue<Object> out) {
@@ -69,17 +68,13 @@ public class Command {
 				returned = true; 
 				return System.getProperty("user.dir");
 			}else{
-				done = true;
+				this.done = true;
 				return finished;
 			}
 		}
 	}
 	public class ls extends Filter{
-		//TODO: make this use the super.run()
-		@Override
-		public void run(){
-			out = (LinkedBlockingQueue<Object>) transform(out);
-		}
+		
 		public ls(LinkedBlockingQueue<Object> in, LinkedBlockingQueue<Object> out) {
 			super(in, out);
 		}
@@ -87,7 +82,6 @@ public class Command {
 		@Override
 		public Object transform(Object o) {
 			File curr = new File(System.getProperty("user.dir"));
-			String r = "";
 			for(String s : curr.list()){
 				try {
 					out.put(s);
@@ -100,6 +94,7 @@ public class Command {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+			this.done = true;
 			return out;
 		}
 	}
@@ -119,37 +114,44 @@ public class Command {
 				File f = new File(System.getProperty("user.dir"));
 				System.setProperty("user.dir", new File(System.getProperty("user.dir") + f.separator + args[0]).getAbsolutePath());
 			}
-			done = true;
+			this.done = true;
 			return null;
 		}
 	}
 	public class cat extends Filter{
-		
+		private File[] files;
+		private Scanner scan;
+		private int current;
 		public cat(LinkedBlockingQueue<Object> in, LinkedBlockingQueue<Object> out) {
 			super(in, out);
-		}
-		
-		@Override
-		public void run(){
-			out = (LinkedBlockingQueue<Object>) transform(out);
+			files = new File[args.length];
+			for(int i = 0;i<args.length;i++){
+				files[i] = new File(args[i]);
+			}
+			current = 0;
+			try {
+				scan = new Scanner(files[current]);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
 		}
 
 		@Override
 		public Object transform(Object o) {
 			try {
-				for(String s : args){
-					Scanner scan = new Scanner(new File(s));
-					while (scan.hasNextLine()){
-						out.put(scan.nextLine());
+				if(current==files.length-1 && !scan.hasNext()){
+					this.done = true;
+					return finished;
+				}else{
+					if(!scan.hasNext()){
+						scan = new Scanner(files[++current]);
 					}
+					return scan.nextLine();
 				}
-				out.put(finished);//TODO: decide if to use instance of DoneObject
 			} catch (FileNotFoundException e) {
 				System.out.println("File not found");
-			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
-			return out;
+			return null;
 		}
 	}
 	public class lc extends Filter{
@@ -162,40 +164,28 @@ public class Command {
 		public Object transform(Object o) {
 			count++;
 			if(o==finished){
-				done = true;
+				this.done = true;
 				return --count;
 			}
 			return null;
 		}
 	}
 	public class history extends Filter{
-
+		Iterator<String> iterator;
 		public history(LinkedBlockingQueue<Object> in, LinkedBlockingQueue<Object> out) {
 			super(in, out);
-		}
-		@Override
-		public void run(){
-			transform(MyShell.history);
+			iterator = MyShell.history.iterator();
 		}
 
 		@Override
-		public Object transform(Object o) {
-			LinkedList<String> list = (LinkedList<String>) o;
-			
-			for(String s : list){
-				try {
-					out.put(s);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+		public Object transform(Object o) {			
+			if(!iterator.hasNext()){
+				this.done = true;
+				return finished;
 			}
-			try {
-				out.put(finished);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			else{
+				return iterator.next();
 			}
-			return null;
 		}
 	}
 	public class sleep extends Filter{
@@ -232,40 +222,24 @@ public class Command {
 			}
 		}
 		@Override
-		public void run() {
-	        Object o = null;
-	        while(o!=finished) {
-				// read from input queue, may block
-	            try {
-	            	if(in!=null){
-	            		o = in.take();
-	            	}
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}    
-	            o = transform(o);
-	            try {
-	            	if(o!=null && o!=finished){
-	          			writer.write(o.toString() + "\n");
-	            	}
+		public Object transform(Object o) {	
+			if(o!=null && o!=finished){
+      			try {
+					writer.write(o.toString() + "\n");
 				} catch (IOException e) {
 					e.printStackTrace();
-				}       
-	        }
-	        try {
-				writer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		@Override
-		public Object transform(Object o) {	
-			if(o==finished){
-				done=true;
+				}
+        	}
+			else if(o==finished){
+				this.done = true;
+				try {
+					writer.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 				return finished;
 			}
-			return o;
+			return null;
 		}
 	}
 	public class grep extends Filter{
@@ -278,7 +252,7 @@ public class Command {
 		public Object transform(Object o) {
 			//take in a line, if it contains arg[0], return.
 			if(o==finished){
-				done = true;
+				this.done = true;
 				return o;
 			}
 			if(((String)o).contains(args[0])){
@@ -301,7 +275,7 @@ public class Command {
 				System.out.println(o);
 			}
 			if(o==finished){
-				done = true;
+				this.done = true;
 			}
 			return null;
 		}

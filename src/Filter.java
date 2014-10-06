@@ -1,35 +1,17 @@
 import java.util.concurrent.*;
 
-/*
- * This is the Filter class all your command implementation needs to extend.
- */
+
 public abstract class Filter extends Thread {
 	protected BlockingQueue<Object> in;
 	protected BlockingQueue<Object> out;
 	protected volatile boolean done;
-	/*
-	 * The following flag is for Part 4.
-	 */
-	protected volatile boolean killed;
 
 	public Filter (BlockingQueue<Object> in, BlockingQueue<Object> out) {
 		this.in = in;
 		this.out = out;
 		this.done = false;
-		this.killed = false;
 	}
-
-
-	/*
-	 * This is for Part 4.
-	 */ 
-	public void cmdKill() {
-		this.killed = true;
-	}
-	/*
-	 * This method need to be overridden.
-	 * @see java.lang.Thread#run()
-	 */
+	
 	public void run() {
         Object o = null;
         while(! this.done) {
@@ -62,9 +44,6 @@ public abstract class Filter extends Thread {
         }
 	}
 
-	/*
-	 * This method might need to be overridden.
-	 */
 	public abstract Object transform(Object o);
 	
 	

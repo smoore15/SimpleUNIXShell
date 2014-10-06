@@ -15,9 +15,10 @@ public class MyShell {
 			if (!cmd.contains("history")){
 				history.add(cmd);
 			}			
-			CommandManager parent = new CommandManager(cmd);
+			new CommandManager(cmd);
 		}
 		System.out.println("REPL exits. Bye.");
+		input.close();
 	}
 
 }

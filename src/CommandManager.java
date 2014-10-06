@@ -12,9 +12,9 @@ import java.util.concurrent.LinkedBlockingQueue;
  * 
  */
 public class CommandManager {
-	public String command;
-	public Command[] arr;
-	public Thread[] tArr;
+	private String command;
+	private Command[] arr;
+	private Thread[] tArr;
 	public CommandManager(String command) {
 		//Create the message buffer.
 
@@ -84,13 +84,7 @@ public class CommandManager {
 		default: return false;
 		}
 	}
-	/**
-	 * This is for Part 4
-	 */
-	public void kill() {
-		
-		
-	}
+
 	private Command[] parse(String command){
 		if(command.charAt(0)=='>'){
 			System.out.println("invalid pipe order");
@@ -131,9 +125,6 @@ public class CommandManager {
 	}
 
 	private boolean validate(String command, String[] args){
-		if(command.equals(">")){
-			command = "redirect";
-		}
 		if(validateCommand(command)){
 				switch (command){
 				case "sleep":	return validateSleep(args);
